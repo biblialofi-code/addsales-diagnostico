@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Diagnóstico — Addsales</title>
+<style>
+  :root{
+    --ink:#0E1B2C; --ink-2:#1D3049;
+    --paper:#F5F1E8; --paper-2:#ECE5D6; --line:#D8CFBC;
+    --accent:#0FB5A6; --accent-deep:#0A8378; --coral:#FF6B54; --muted:#6C7787;
+    --bot-bubble:#FFFFFF; --user-bubble:#0E1B2C;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:radial-gradient(1200px 600px at 15% -10%, rgba(15,181,166,.10), transparent 55%), var(--paper);
+    color:var(--ink); display:flex;flex-direction:column;align-items:center; min-height:100dvh;padding:24px 16px;
+  }
+  .frame{width:100%;max-width:560px;display:flex;flex-direction:column;flex:1}
+  .brand{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+  .brand .mark{width:30px;height:30px;border-radius:8px;flex:none;background:conic-gradient(from 210deg,var(--accent),var(--ink) 70%);box-shadow:0 2px 0 rgba(14,27,44,.12)}
+  .brand b{font-size:15px;letter-spacing:.14em;text-transform:uppercase;font-weight:800}
+  .kicker{font-size:12.5px;color:var(--muted);letter-spacing:.02em;margin-bottom:16px;padding-left:40px}
+  .kicker b{color:var(--accent-deep);font-weight:700}
+  .chat{flex:1;background:var(--paper-2);border:1px solid var(--line);border-radius:18px;padding:18px 16px;overflow-y:auto;display:flex;flex-direction:column;gap:12px;min-height:360px;box-shadow:inset 0 1px 0 rgba(255,255,255,.6), 0 10px 30px -18px rgba(14,27,44,.35);scroll-behavior:smooth}
+  .row{display:flex;gap:9px;align-items:flex-end;animation:rise .32s ease both}
+  .row.user{flex-direction:row-reverse}
+  @keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .av{width:26px;height:26px;border-radius:7px;flex:none;display:grid;place-items:center;font-size:11px;font-weight:800;color:#fff}
+  .av.bot{background:conic-gradient(from 210deg,var(--accent),var(--ink) 75%)}
+  .av.user{background:var(--ink-2);color:var(--paper)}
+  .bubble{max-width:82%;padding:11px 14px;border-radius:15px;font-size:14.5px;line-height:1.5;box-shadow:0 1px 2px rgba(14,27,44,.08)}
+  .row.bot .bubble{background:var(--bot-bubble);border-bottom-left-radius:5px}
+  .row.user .bubble{background:var(--user-bubble);color:var(--paper);border-bottom-right-radius:5px}
+  .bubble b{font-weight:700}
+  .bubble .big{display:block;font-size:26px;font-weight:800;letter-spacing:-.01em;margin:2px 0}
+  .bubble .big.teal{color:var(--accent-deep)}
+  .reveal{background:var(--ink)!important;color:var(--paper)!important}
+  .reveal b{color:var(--accent)}
+  .dots{display:inline-flex;gap:4px;padding:4px 2px}
+  .dots i{width:6px;height:6px;border-radius:50%;background:var(--muted);opacity:.5;animation:blink 1.2s infinite}
+  .dots i:nth-child(2){animation-delay:.2s}.dots i:nth-child(3){animation-delay:.4s}
+  @keyframes blink{0%,60%,100%{opacity:.25;transform:translateY(0)}30%{opacity:.9;transform:translateY(-2px)}}
+  .dock{margin-top:12px;display:flex;flex-direction:column;gap:10px}
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{border:1px solid var(--line);background:#fff;color:var(--ink);padding:9px 14px;border-radius:999px;font-size:13.5px;font-weight:600;cursor:pointer;transition:.15s}
+  .chip:hover{border-color:var(--accent);color:var(--accent-deep);transform:translateY(-1px)}
+  .composer{display:flex;gap:8px}
+  .composer input{flex:1;border:1px solid var(--line);background:#fff;border-radius:12px;padding:13px 15px;font-size:15px;color:var(--ink);outline:none;transition:.15s}
+  .composer input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(15,181,166,.15)}
+  .send{border:none;background:var(--ink);color:#fff;border-radius:12px;padding:0 18px;font-size:15px;font-weight:700;cursor:pointer;transition:.15s;flex:none}
+  .send:hover{background:var(--accent-deep)}
+  .cta{border:none;background:var(--coral);color:#fff;border-radius:12px;padding:15px;font-size:15.5px;font-weight:800;cursor:pointer;width:100%;box-shadow:0 8px 20px -8px rgba(255,107,84,.7);transition:.15s}
+  .cta:hover{transform:translateY(-1px)}
+  .foot{font-size:11.5px;color:var(--muted);text-align:center;margin-top:12px;line-height:1.5}
+  .foot b{color:var(--ink)}
+  .hidden{display:none!important}
+</style>
+</head>
+<body>
+<div class="frame">
+  <div class="brand"><span class="mark"></span><b>Addsales</b></div>
+  <div class="kicker">Descubra em 1 minuto <b>quanto você tem parado na sua base</b> — sem cadastro.</div>
+  <div class="chat" id="chat"></div>
+  <div class="dock" id="dock">
+    <div class="chips" id="chips"></div>
+    <div class="composer" id="composer">
+      <input id="input" type="text" placeholder="Escreva aqui..." autocomplete="off" />
+      <button class="send" id="send">Enviar</button>
+    </div>
+    <button class="cta hidden" id="cta">Quero um diagnóstico da minha base de verdade</button>
+  </div>
+  <div class="foot">
+    Estimativa baseada no tamanho da sua base parada, não em promessa de faturamento.<br>
+    <b>Quanto disso dá pra recuperar depende do seu caso</b> — é o que o diagnóstico descobre.
+  </div>
+</div>
+
+<script>
+const chat=document.getElementById('chat'), chips=document.getElementById('chips'),
+      input=document.getElementById('input'), send=document.getElementById('send'),
+      cta=document.getElementById('cta'), composer=document.getElementById('composer');
+
+const state={step:'negocio', negocio:'generico', base:null, ticket:null, asked:new Set(), history:[]};
+
+const LEXICON={
+  academia:{unidade:'ex-alunos e alunos inativos'},
+  ecommerce:{unidade:'carrinhos abandonados e clientes inativos'},
+  educacao:{unidade:'ex-alunos e leads que não matricularam'},
+  seguro:{unidade:'apólices não renovadas e cotações paradas'},
+  assinatura:{unidade:'assinaturas canceladas e trials que não converteram'},
+  servico:{unidade:'clientes inativos e propostas não fechadas'},
+  generico:{unidade:'clientes inativos e leads que não converteram'}
+};
+
+const fmt=n=>n.toLocaleString('pt-BR',{maximumFractionDigits:0});
+const brl=n=>'R$ '+n.toLocaleString('pt-BR',{maximumFractionDigits:0});
+
+function addRow(role,html,extra=''){
+  const row=document.createElement('div'); row.className='row '+role;
+  row.innerHTML=`<div class="av ${role}">${role==='user'?'V':''}</div><div class="bubble ${extra}">${html}</div>`;
+  chat.appendChild(row); chat.scrollTop=chat.scrollHeight; return row;
+}
+function typing(){const r=document.createElement('div');r.className='row bot';r.id='typing';r.innerHTML=`<div class="av bot"></div><div class="bubble"><span class="dots"><i></i><i></i><i></i></span></div>`;chat.appendChild(r);chat.scrollTop=chat.scrollHeight;}
+function stopTyping(){const t=document.getElementById('typing');if(t)t.remove();}
+function botSay(html,delay=650,extra=''){return new Promise(res=>{typing();setTimeout(()=>{stopTyping();addRow('bot',html,extra);res();},delay);});}
+function setChips(list){chips.innerHTML='';list.forEach(([label,val])=>{const b=document.createElement('button');b.className='chip';b.textContent=label;b.onclick=()=>handleUser(val??label,label);chips.appendChild(b);});}
+function clearChips(){chips.innerHTML='';}
+
+function parseNumber(s){if(!s)return null;let t=s.toLowerCase().replace(/\./g,'').replace(/r\$/g,'').trim();let mult=1;if(/mil/.test(t))mult=1000;if(/milh|kk/.test(t))mult=1000000;const m=t.match(/(\d+(?:,\d+)?)/);if(!m)return null;let n=parseFloat(m[1].replace(',','.'));if(mult>1&&n<1000)n=n*mult;return Math.round(n);}
+function detectNegocio(s){const t=s.toLowerCase();if(/academia|gym|crossfit|fitness|muscula/.test(t))return'academia';if(/ecom|e-com|loja|varejo|carrinho|shop/.test(t))return'ecommerce';if(/escola|curso|educa|faculdade|universidade|idioma/.test(t))return'educacao';if(/seguro|apólice|apolice|corretora/.test(t))return'seguro';if(/assinatura|clube|saas|streaming|subscri/.test(t))return'assinatura';if(/serviço|servico|consultoria|clínica|clinica|estética|estetica|salão|salao/.test(t))return'servico';return'generico';}
+
+// ---- IA via servidor (Vercel) ----
+async function askClaude(userText){
+  const sys=`Você é o assistente de diagnóstico da Addsales, empresa que faz recuperação de vendas em bases de leads que o cliente já tem mas não converteu (ex-clientes, inativos, carrinhos abandonados, propostas paradas).
+Tom: direto, humano, brasileiro, curto. Uma ou duas frases. Nada de "olá, tudo bem", nada de emoji.
+REGRA DE OURO: nunca prometa faturamento futuro. Fale do tamanho do que já está parado. "Cada caso é um caso" é convite pro diagnóstico, não desculpa.
+Estado: ${JSON.stringify({negocio:state.negocio,base:state.base,ticket:state.ticket,step:state.step})}.
+Sua tarefa depende do step:
+- step "negocio": a pessoa disse o ramo. Reaja em 1 frase reconhecendo o ramo e pergunte quantas pessoas ela tem na base que já demonstraram interesse mas não compram hoje (inativos, ex-clientes, leads parados). Peça número aproximado.
+- step "base": ela deu o número da base. Reaja curto e pergunte o ticket médio (quanto vale, em reais, uma venda típica).
+Responda só com a fala, sem aspas, sem prefixo.`;
+  try{
+    const r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({system:sys,messages:state.history.concat([{role:'user',content:userText}])})});
+    const data=await r.json();
+    return (data && data.text) ? data.text : null;
+  }catch(e){ return null; }
+}
+
+// ---- Q&A pós-resultado ----
+const QA={
+  como:{label:'Como funciona?',say:`Simples: a gente pega essa base que hoje ninguém trabalha e cria um atendimento automatizado que reabre a conversa com cada pessoa — no canal certo, na hora certa — até sair dali uma venda ou uma reunião. Você não muda nada no seu processo atual. A gente roda em paralelo.`},
+  base:{label:'E a segurança da minha base?',say:`Pergunta justa — e a resposta é simples. É como se fosse um call center: alguém de fora atende seus clientes por você. A diferença é que aqui é mais seguro, porque é auditado, formalizado por contrato e sem gente anotando telefone em papel. Seus dados continuam seus, e são usados só pra trazer venda de volta pra você.`},
+  custo:{label:'Quanto custa?',say:`Você só paga se a gente vender. Sem mensalidade, sem taxa de setup, sem fidelidade. Se não sair venda, não sai custo. O risco do teste é nosso, não seu.`},
+  prova:{label:'Isso funciona mesmo?',say:`Funciona melhor com o tempo — quanto mais a operação roda na sua base, mais ela acerta. E o melhor: o risco de descobrir é seu zero. Você não paga pra testar, não muda nada no seu processo e só tem custo se sair venda. Se não funcionar na sua base, você não perde nada.`},
+  demora:{label:'Demora pra começar?',say:`O diagnóstico da sua base é rápido. A partir dele a gente já monta o plano das primeiras semanas, com o que vai ser feito e quando. Nada de projeto que some por dois meses.`}
+};
+function offerMenu(){const asked=state.asked;const opts=Object.entries(QA).filter(([k])=>!asked.has(k)).map(([k,v])=>[v.label,'::'+k]);opts.push(['Quero falar com alguém','::contato']);setChips(opts);}
+async function answerQA(key){
+  state.asked.add(key);
+  if(key==='contato'){clearChips();composer.classList.add('hidden');await botSay(`Perfeito. É só deixar seu contato que um especialista te chama pra olhar sua base de verdade.`,650);cta.classList.remove('hidden');cta.scrollIntoView({behavior:'smooth',block:'nearest'});return;}
+  await botSay(QA[key].say,750);
+  if(Object.keys(QA).some(k=>!state.asked.has(k))) await botSay(`Mais alguma coisa? Ou já quer olhar sua base pra valer?`,600);
+  offerMenu();
+}
+
+async function showResult(){
+  state.step='done';
+  const total=state.base*state.ticket, lo=Math.round(total*0.05), hi=Math.round(total*0.12);
+  const lex=LEXICON[state.negocio];
+  await botSay(`Então vamos aos números. Você tem <b>${fmt(state.base)}</b> ${lex.unidade}, cada um valendo cerca de <b>${brl(state.ticket)}</b>.`,700);
+  await botSay(`Isso é a sua base parada:<span class="big teal">${brl(total)}</span>em vendas que já passaram pela sua porta e hoje ninguém está trabalhando.`,900);
+  await botSay(`Não estou dizendo que a gente recupera tudo. Mas recuperar só uma fração já é dinheiro que hoje é <b>zero</b>:<span class="big">${brl(lo)} a ${brl(hi)}</span>É a faixa que bases parecidas costumam recuperar. Na sua, o número real depende de <b>por que</b> essas pessoas pararam — e é isso que a gente descobre olhando a base de verdade.`,900);
+  // revelação: isso foi o Rise
+  await botSay(`Ah, e uma última coisa. Essa conversa que você acabou de ter — entender seu caso, achar seu número, responder o que importa pra você — <b>foi o Rise trabalhando</b>. É exatamente assim que ele reabre a conversa com cada cliente que parou de comprar de você. Você não viu uma demonstração. Você <b>foi</b> a demonstração.`,1000,'reveal');
+  state.step='qa';
+  await botSay(`Quer entender melhor antes de decidir? Pergunte o que quiser 👇`,650);
+  offerMenu();
+}
+
+async function handleUser(value,label){
+  addRow('user',label||value);
+  state.history.push({role:'user',content:String(value)});
+  clearChips();
+
+  if(state.step==='qa'){
+    const v=String(value);
+    if(v.startsWith('::')){await answerQA(v.slice(2));return;}
+    const t=v.toLowerCase();let key=null;
+    if(/funciona|como|faz|processo/.test(t))key='como';
+    else if(/base|dado|lgpd|segur|privac|compliance/.test(t))key='base';
+    else if(/cust|preç|prec|valor|caro|pag/.test(t))key='custo';
+    else if(/prova|exemplo|resultado|case|dá certo|da certo/.test(t))key='prova';
+    else if(/demora|tempo|começar|comecar|rápido|rapido|prazo/.test(t))key='demora';
+    else if(/falar|contato|especialista|reunião|reuniao|humano|pessoa/.test(t))key='contato';
+    if(key)await answerQA(key);
+    else{await botSay(`Boa pergunta — essa eu prefiro que um especialista te responda direito. Quer deixar seu contato?`,650);offerMenu();}
+    return;
+  }
+
+  if(state.step==='negocio'){
+    state.negocio=detectNegocio(String(value)); state.step='base';
+    const reply=await askClaude(String(value));
+    const lex=LEXICON[state.negocio];
+    const fallback=`Entendi. E hoje, quantos <b>${lex.unidade}</b> você tem na sua base? Um número aproximado já serve.`;
+    await botSay(reply?reply.replace(/\n/g,'<br>'):fallback,300);
+    state.history.push({role:'assistant',content:reply||'quantos inativos você tem?'});
+    input.placeholder='ex: 8 mil, 500, 20000...';
+    return;
+  }
+  if(state.step==='base'){
+    const n=parseNumber(String(value));
+    if(!n){await botSay('Só pra eu calcular certo — me dá um número aproximado. Pode ser "8 mil", "500", "20 mil".',400);return;}
+    state.base=n; state.step='ticket';
+    const reply=await askClaude(String(value));
+    const fallback=`<b>${fmt(n)}</b> pessoas paradas. Última pergunta: quanto vale, em média, <b>uma venda sua</b>? (mensalidade, ticket médio, valor do plano...)`;
+    await botSay(reply?reply.replace(/\n/g,'<br>'):fallback,300);
+    state.history.push({role:'assistant',content:reply||'qual seu ticket médio?'});
+    input.placeholder='ex: R$ 150, 89,90, 1200...';
+    return;
+  }
+  if(state.step==='ticket'){
+    const n=parseNumber(String(value));
+    if(!n){await botSay('Me dá o valor médio de uma venda, em reais. Ex: "150", "89,90", "1.200".',400);return;}
+    state.ticket=n; await showResult();
+    return;
+  }
+}
+
+send.onclick=()=>{const v=input.value.trim();if(!v)return;input.value='';handleUser(v);};
+input.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();send.click();}});
+cta.onclick=()=>{cta.textContent='Perfeito — deixe seu contato que a gente te chama 👍';cta.style.background='var(--accent-deep)';};
+
+window.addEventListener('load',async()=>{
+  await botSay('Oi! Em menos de um minuto eu te mostro <b>quanto você tem parado</b> em vendas que já passaram pela sua base.',600);
+  await botSay('Pra começar: <b>o que você vende?</b>',600);
+  setChips([['Academia','tenho uma academia'],['E-commerce','tenho um e-commerce'],['Escola / curso','trabalho com educação'],['Seguros','vendo seguros'],['Assinatura / clube','trabalho com assinatura'],['Outro','outro tipo de negócio']]);
+  input.placeholder='ou escreva seu ramo...';
+});
+</script>
+</body>
+</html>
