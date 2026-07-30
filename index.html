@@ -130,6 +130,41 @@ Responda só com a fala, sem aspas, sem prefixo.`;
   }catch(e){ return null; }
 }
 
+// ---- registro anônimo de perguntas (Supabase via /api/log) ----
+// não guarda nome, e-mail nem o número da base. só ramo, pergunta, resposta, se travou.
+function logPergunta({pergunta, resposta, travou, etapa}){
+  try{
+    fetch('/api/log',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ramo:state.negocio||'', pergunta, resposta, travou:!!travou, etapa:etapa||state.step})});
+  }catch(e){/* nunca trava o chat por causa do log */}
+}
+
+// ---- IA para responder objeções no Q&A (com as diretrizes aprovadas) ----
+async function askClaudeQA(userText){
+  const sys=`Você é o assistente da Addsales, empresa que faz recuperação de vendas em bases de leads que o cliente já tem mas não converteu. A pessoa já viu o número da base parada dela e agora está tirando dúvidas antes de decidir.
+
+Tom: direto, humano, brasileiro, curto. Uma a três frases. Nada de "olá", nada de emoji. Não repita fórmulas decoradas — responda especificamente o que foi perguntado, com palavras naturais.
+
+Você DEVE seguir estas verdades sobre a Addsales (não invente nada além disto):
+- Modelo: só paga se a Addsales vender. Sem mensalidade, sem setup, sem fidelidade. Se não sair venda, não sai custo. O risco do teste é da Addsales, não do cliente. NUNCA invente valores, porcentagens de comissão, planos ou preços — se perguntarem o valor exato, diga que depende do ticket e do acordo, e que é sempre um percentual sobre venda realizada.
+- Segurança da base: é como se fosse um call center — alguém de fora atende os clientes por você — só que mais seguro, auditado e formalizado por contrato. Os dados continuam do cliente e são usados só pra trazer venda de volta.
+- Como funciona: a Addsales pega a base parada e cria um atendimento automatizado que reabre a conversa com cada pessoa, no canal e hora certos, até sair venda ou reunião. Roda em paralelo, o cliente não muda o processo dele.
+- Resultado: funciona melhor com o tempo, conforme aprende o padrão da base. NUNCA prometa faturamento futuro nem cite número de resultado ou nome de cliente. Fale do tamanho do que está parado, não do que será recuperado.
+- Começar: o diagnóstico da base é rápido e já gera um plano das primeiras semanas.
+
+Se perguntarem algo que você não sabe ou que foge disso, não invente: diga que um especialista responde melhor e convide a pessoa a deixar o contato.
+
+Se a pessoa repetir uma pergunta que já foi respondida, NÃO repita a mesma resposta — reconheça ("como comentei...") e traga um ângulo novo ou um exemplo, ou pergunte o que ficou faltando esclarecer.
+
+Depois de responder, se fizer sentido, faça uma ponte curta pro próximo passo (olhar a base de verdade). Sem forçar.`;
+  try{
+    const r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({system:sys,messages:state.history.concat([{role:'user',content:userText}])})});
+    const data=await r.json();
+    return (data && data.text) ? data.text : null;
+  }catch(e){ return null; }
+}
+
 // ---- Q&A pós-resultado ----
 const QA={
   como:{label:'Como funciona?',say:`Simples: a gente pega essa base que hoje ninguém trabalha e cria um atendimento automatizado que reabre a conversa com cada pessoa — no canal certo, na hora certa — até sair dali uma venda ou uma reunião. Você não muda nada no seu processo atual. A gente roda em paralelo.`},
@@ -139,10 +174,11 @@ const QA={
   demora:{label:'Demora pra começar?',say:`O diagnóstico da sua base é rápido. A partir dele a gente já monta o plano das primeiras semanas, com o que vai ser feito e quando. Nada de projeto que some por dois meses.`}
 };
 function offerMenu(){const asked=state.asked;const opts=Object.entries(QA).filter(([k])=>!asked.has(k)).map(([k,v])=>[v.label,'::'+k]);opts.push(['Quero falar com alguém','::contato']);setChips(opts);}
-async function answerQA(key){
+async function answerChip(key){
   state.asked.add(key);
   if(key==='contato'){clearChips();composer.classList.add('hidden');await botSay(`Perfeito. É só deixar seu contato que um especialista te chama pra olhar sua base de verdade.`,650);cta.classList.remove('hidden');cta.scrollIntoView({behavior:'smooth',block:'nearest'});return;}
   await botSay(QA[key].say,750);
+  state.history.push({role:'assistant',content:QA[key].say});
   if(Object.keys(QA).some(k=>!state.asked.has(k))) await botSay(`Mais alguma coisa? Ou já quer olhar sua base pra valer?`,600);
   offerMenu();
 }
@@ -168,16 +204,19 @@ async function handleUser(value,label){
 
   if(state.step==='qa'){
     const v=String(value);
-    if(v.startsWith('::')){await answerQA(v.slice(2));return;}
-    const t=v.toLowerCase();let key=null;
-    if(/funciona|como|faz|processo/.test(t))key='como';
-    else if(/base|dado|lgpd|segur|privac|compliance/.test(t))key='base';
-    else if(/cust|preç|prec|valor|caro|pag/.test(t))key='custo';
-    else if(/prova|exemplo|resultado|case|dá certo|da certo/.test(t))key='prova';
-    else if(/demora|tempo|começar|comecar|rápido|rapido|prazo/.test(t))key='demora';
-    else if(/falar|contato|especialista|reunião|reuniao|humano|pessoa/.test(t))key='contato';
-    if(key)await answerQA(key);
-    else{await botSay(`Boa pergunta — essa eu prefiro que um especialista te responda direito. Quer deixar seu contato?`,650);offerMenu();}
+    if(v.startsWith('::')){await answerChip(v.slice(2));return;}
+    if(/falar|contato|especialista|reunião|reuniao|humano|pessoa/.test(v.toLowerCase())){await answerChip('contato');return;}
+    // texto livre -> IA responde com as diretrizes aprovadas (nunca repete decorado)
+    const reply=await askClaudeQA(v);
+    const fallback=`Boa pergunta — essa eu prefiro que um especialista te responda direito. Quer deixar seu contato?`;
+    const finalReply = reply || fallback;
+    // "travou" = a IA falhou OU empurrou pro especialista (sinal de lacuna na base de conhecimento)
+    const handoff = /especialista|não sei|nao sei|não tenho|nao tenho|deixar (o|seu) contato/i.test(finalReply);
+    const travou = !reply || handoff;
+    await botSay(reply?reply.replace(/\n/g,'<br>'):fallback,300);
+    state.history.push({role:'assistant',content:finalReply});
+    logPergunta({pergunta:v, resposta:finalReply, travou, etapa:'qa'});
+    offerMenu();
     return;
   }
 
